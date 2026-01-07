@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { TokenDisplay } from '../components/TokenDisplay';
+import { fetchUserProfile } from '../services/api';
+import type { ApiResponse, UserData } from '../services/api';
 
 interface DecodedToken {
   [key: string]: unknown;
@@ -12,6 +14,9 @@ const Home = () => {
   const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
   const [decodedRefreshToken, setDecodedRefreshToken] = useState<DecodedToken | null>(null);
   const [refreshMessage, setRefreshMessage] = useState<string>('');
+  const [apiResponse, setApiResponse] = useState<ApiResponse<UserData> | null>(null);
+  const [apiLoading, setApiLoading] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string>('');
 
   useEffect(() => {
     if (keycloak?.token) {
@@ -69,6 +74,31 @@ const Home = () => {
     logout();
   };
 
+  const handleBackendApiCall = async () => {
+    if (!keycloak?.token) {
+      setApiError('No access token available');
+      return;
+    }
+
+    setApiLoading(true);
+    setApiError('');
+    setApiResponse(null);
+
+    try {
+      const response = await fetchUserProfile(keycloak.token);
+      setApiResponse(response);
+
+      if (response.error) {
+        setApiError(`${response.error.type}: ${response.error.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      setApiError(error instanceof Error ? error.message : 'Failed to fetch user profile');
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-6xl mx-auto">
@@ -86,6 +116,13 @@ const Home = () => {
                 Refresh Token
               </button>
               <button
+                onClick={handleBackendApiCall}
+                disabled={apiLoading}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {apiLoading ? 'Loading...' : 'Backend API'}
+              </button>
+              <button
                 onClick={handleLogout}
                 className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
               >
@@ -96,6 +133,34 @@ const Home = () => {
               <p className="mt-4 text-sm text-foreground/80">{refreshMessage}</p>
             )}
           </div>
+
+          {/* Backend API Response */}
+          {(apiResponse || apiError) && (
+            <div className="bg-foreground/5 rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 text-foreground">Backend API Response</h2>
+              {apiError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
+                  <p className="text-red-500 font-semibold">Error</p>
+                  <p className="text-red-400 text-sm mt-1">{apiError}</p>
+                </div>
+              )}
+              {apiResponse && !apiError && apiResponse.data && (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                  <p className="text-green-500 font-semibold mb-2">Success (Status: {apiResponse._status})</p>
+                  <div className="text-foreground/80 text-sm space-y-1">
+                    <p><span className="font-medium">ID:</span> {apiResponse.data.id}</p>
+                    <p><span className="font-medium">Email:</span> {apiResponse.data.email}</p>
+                    <p><span className="font-medium">Username:</span> {apiResponse.data.username}</p>
+                    <p><span className="font-medium">Keycloak User ID:</span> {apiResponse.data.keycloak_user_id}</p>
+                    <p><span className="font-medium">Active:</span> {apiResponse.data.is_active ? 'Yes' : 'No'}</p>
+                    <p><span className="font-medium">Email Verified:</span> {apiResponse.data.email_verified ? 'Yes' : 'No'}</p>
+                    <p><span className="font-medium">Created At:</span> {new Date(apiResponse.data.created_at).toLocaleString()}</p>
+                    <p><span className="font-medium">Updated At:</span> {new Date(apiResponse.data.updated_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Access Token */}
           <TokenDisplay
