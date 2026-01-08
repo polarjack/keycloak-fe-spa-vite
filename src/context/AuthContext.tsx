@@ -1,18 +1,7 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import keycloak from '../config/keycloak';
-import type Keycloak from 'keycloak-js';
-
-interface AuthContextType {
-  keycloak: Keycloak | null;
-  authenticated: boolean;
-  loading: boolean;
-  token: string | undefined;
-  login: () => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './auth';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -89,12 +78,4 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

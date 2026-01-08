@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { TokenDisplay } from '../components/TokenDisplay';
 import { fetchUserProfile } from '../services/api';
 import type { ApiResponse, UserData } from '../services/api';
